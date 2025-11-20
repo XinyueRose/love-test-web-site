@@ -456,6 +456,76 @@
             background: #2980b9;
         }
         
+        /* 历史记录样式 */
+        .history-btn {
+            background: #f39c12;
+            color: white;
+        }
+        
+        .history-btn:hover {
+            background: #e67e22;
+        }
+        
+        .history-container {
+            display: none;
+            padding: 25px;
+        }
+        
+        .history-container.active {
+            display: block;
+            animation: fadeIn 0.8s ease;
+        }
+        
+        .history-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .history-item {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            border-left: 4px solid var(--primary);
+        }
+        
+        .history-date {
+            font-weight: 600;
+            color: var(--primary);
+            margin-bottom: 5px;
+        }
+        
+        .history-type {
+            font-size: 14px;
+            color: var(--gray);
+        }
+        
+        .no-history {
+            text-align: center;
+            color: var(--gray);
+            padding: 30px;
+        }
+        
+        .back-btn {
+            background: var(--gray);
+            color: white;
+            margin-top: 20px;
+        }
+        
+        .back-btn:hover {
+            background: #5d6d7e;
+        }
+        
+        .result-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        
         footer {
             text-align: center;
             color: var(--gray);
@@ -565,6 +635,10 @@
             .advice-text {
                 font-size: 13px;
             }
+            
+            .result-actions {
+                flex-direction: column;
+            }
         }
         
         /* 小屏幕手机优化 */
@@ -670,6 +744,15 @@
                 <!-- 语言结果将通过JavaScript动态生成 -->
             </div>
             
+            <div class="result-actions">
+                <button class="btn history-btn" id="history-btn">
+                    <i class="fas fa-history"></i> 查看历史
+                </button>
+                <button class="btn restart-btn" id="restart-btn">
+                    <i class="fas fa-redo"></i> 重新测试
+                </button>
+            </div>
+            
             <div class="advice-section">
                 <h3 class="advice-title"><i class="fas fa-lightbulb"></i> 如何运用你的爱语</h3>
                 <ul class="advice-list">
@@ -691,9 +774,15 @@
                     </li>
                 </ul>
             </div>
-            
-            <button class="btn restart-btn" id="restart-btn">
-                <i class="fas fa-redo"></i> 重新测试
+        </div>
+        
+        <div class="history-container" id="history-container">
+            <h2 class="result-title"><i class="fas fa-history"></i> 测试历史</h2>
+            <div class="history-list" id="history-list">
+                <!-- 历史记录将通过JavaScript动态生成 -->
+            </div>
+            <button class="btn back-btn" id="back-btn">
+                <i class="fas fa-arrow-left"></i> 返回结果
             </button>
         </div>
     </div>
@@ -858,6 +947,10 @@
         const primaryLanguageElement = document.getElementById('primary-language');
         const languageDescriptionElement = document.getElementById('language-description');
         const allLanguagesElement = document.querySelector('.all-languages');
+        const historyBtn = document.getElementById('history-btn');
+        const historyContainer = document.getElementById('history-container');
+        const historyList = document.getElementById('history-list');
+        const backBtn = document.getElementById('back-btn');
 
         // 初始化测试
         function initTest() {
@@ -1035,12 +1128,71 @@
                 allLanguagesElement.appendChild(languageResult);
             });
             
+            // 保存测试结果到历史记录
+            saveToHistory(primaryLanguage, sortedLanguages);
+            
             // 隐藏测试表单，显示结果
             loveLanguageForm.style.display = 'none';
             resultContainer.classList.add('active');
             
             // 滚动到顶部，确保结果可见
             window.scrollTo(0, 0);
+        }
+
+        // 保存测试结果到历史记录
+        function saveToHistory(primaryLanguage, sortedLanguages) {
+            const history = getHistory();
+            const testResult = {
+                id: Date.now(),
+                date: new Date().toLocaleString('zh-CN'),
+                primaryLanguage: primaryLanguage,
+                scores: sortedLanguages.reduce((acc, item) => {
+                    acc[item.language] = item.score;
+                    return acc;
+                }, {})
+            };
+            
+            history.unshift(testResult);
+            // 只保留最近10次测试记录
+            if (history.length > 10) {
+                history.pop();
+            }
+            
+            localStorage.setItem('loveLanguageHistory', JSON.stringify(history));
+        }
+
+        // 获取历史记录
+        function getHistory() {
+            const history = localStorage.getItem('loveLanguageHistory');
+            return history ? JSON.parse(history) : [];
+        }
+
+        // 显示历史记录
+        function showHistory() {
+            const history = getHistory();
+            historyList.innerHTML = '';
+            
+            if (history.length === 0) {
+                historyList.innerHTML = '<div class="no-history">暂无测试历史记录</div>';
+            } else {
+                history.forEach(item => {
+                    const historyItem = document.createElement('div');
+                    historyItem.className = 'history-item';
+                    historyItem.innerHTML = `
+                        <div class="history-date">${item.date}</div>
+                        <div class="history-type">主要爱语: <strong>${item.primaryLanguage}</strong></div>
+                        <div class="history-scores">
+                            ${Object.entries(item.scores).map(([lang, score]) => 
+                                `${lang}: ${score}分`
+                            ).join(' | ')}
+                        </div>
+                    `;
+                    historyList.appendChild(historyItem);
+                });
+            }
+            
+            resultContainer.classList.remove('active');
+            historyContainer.classList.add('active');
         }
 
         // 重新开始测试
@@ -1054,6 +1206,7 @@
             // 重置UI
             loveLanguageForm.style.display = 'block';
             resultContainer.classList.remove('active');
+            historyContainer.classList.remove('active');
             
             // 重新初始化测试
             initTest();
@@ -1066,6 +1219,11 @@
         prevBtn.addEventListener('click', prevQuestion);
         nextBtn.addEventListener('click', nextQuestion);
         restartBtn.addEventListener('click', restartTest);
+        historyBtn.addEventListener('click', showHistory);
+        backBtn.addEventListener('click', () => {
+            historyContainer.classList.remove('active');
+            resultContainer.classList.add('active');
+        });
 
         // 初始化测试
         initTest();
